@@ -73,7 +73,7 @@ video { display: none; }
 
 <body>
 
-<div id="loading">Loading camera & hand model…</div>
+<div id="loading">Loading camera & hand modelâ€¦</div>
 <div id="gesture">NO HAND</div>
 
 <div id="ui">
@@ -206,6 +206,7 @@ function updateParticles(){
 /* ---------- HAND TRACKING ---------- */
 const gestureUI=document.getElementById("gesture");
 const loading=document.getElementById("loading");
+const video = document.getElementById("video");
 
 const hands=new Hands({
   locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
@@ -258,3 +259,4 @@ window.setShape=generateShape;
 
 </body>
 </html>
+
