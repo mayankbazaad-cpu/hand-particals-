@@ -62,7 +62,85 @@ function animate() {
 }
 
 animate();
+  // ---------- HAND TRACKING ----------
+
+const video = document.createElement("video");
+video.setAttribute("autoplay", "");
+video.setAttribute("playsinline", "");
+video.style.display = "none";
+document.body.appendChild(video);
+
+const gestureUI = document.createElement("div");
+gestureUI.style.position = "fixed";
+gestureUI.style.top = "10px";
+gestureUI.style.right = "10px";
+gestureUI.style.padding = "8px 12px";
+gestureUI.style.background = "rgba(0,0,0,0.6)";
+gestureUI.style.color = "white";
+gestureUI.style.fontFamily = "Arial";
+gestureUI.style.borderRadius = "12px";
+gestureUI.innerText = "NO HAND";
+document.body.appendChild(gestureUI);
+
+let handPos = new THREE.Vector3();
+let handOpen = false;
+
+// Load MediaPipe Hands safely
+import {Hands} from "https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js";
+import {Camera} from "https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js";
+
+const hands = new Hands({
+  locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
+});
+hands.setOptions({
+  maxNumHands: 1,
+  minDetectionConfidence: 0.7,
+  minTrackingConfidence: 0.7
+});
+
+hands.onResults(results => {
+  if(!results || !results.multiHandLandmarks || results.multiHandLandmarks.length === 0){
+    gestureUI.innerText = "NO HAND";
+    return;
+  }
+  gestureUI.innerText = "HAND DETECTED";
+
+  const lm = results.multiHandLandmarks[0];
+  const w = lm[0];
+  const i = lm[8];
+
+  handPos.set((w.x-0.5)*6, -(w.y-0.5)*6, 0);
+  handOpen = Math.hypot(w.x-i.x, w.y-i.y) > 0.1;
+  gestureUI.innerText = handOpen ? "OPEN HAND" : "FIST";
+});
+
+// ---------- SAFE CAMERA START ----------
+
+// Request permission first
+navigator.mediaDevices.getUserMedia({video:true})
+.then(stream => {
+  video.srcObject = stream;
+
+  setTimeout(()=>{
+    const mpCamera = new Camera(video, {
+      onFrame: async () => {
+        if(video.readyState >= 2){
+          await hands.send({image: video});
+        }
+      },
+      width: 640,
+      height: 480
+    });
+    mpCamera.start();
+  }, 500); // small delay to avoid GitHub Pages issues
+})
+.catch(err=>{
+  console.warn("Camera not available:", err);
+  gestureUI.innerText = "CAMERA DENIED";
+});
+
 </script>
 
 </body>
 </html>
+
