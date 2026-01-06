@@ -1,277 +1,68 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Hand Controlled Particle System</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
+<meta charset="UTF-8">
+<title>Three.js Test</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-html, body {
-  margin: 0;
-  padding: 0;
-  background: #050505;
-  overflow: hidden;
-  font-family: Arial, sans-serif;
-  color: white;
+body { margin:0; background:black; overflow:hidden; }
+#msg {
+  position:fixed;
+  top:10px;
+  left:10px;
+  color:white;
+  font-family:Arial;
 }
-
-/* UI PANEL */
-#ui {
-  position: fixed;
-  top: 10px;
-  left: 10px;
-  background: rgba(0,0,0,0.7);
-  padding: 12px;
-  border-radius: 10px;
-  width: 220px;
-  z-index: 10;
-}
-
-#ui label {
-  font-size: 12px;
-}
-
-#ui input, #ui button {
-  width: 100%;
-  margin-bottom: 6px;
-}
-
-#ui button {
-  background: #111;
-  color: white;
-  border: 1px solid #333;
-  padding: 6px;
-}
-
-/* LOADING */
-#loading {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: black;
-  z-index: 20;
-  font-size: 18px;
-}
-
-/* GESTURE LABEL */
-#gesture {
-  position: fixed;
-  top: 15px;
-  right: 15px;
-  padding: 8px 14px;
-  background: rgba(0,0,0,0.7);
-  border-radius: 20px;
-  font-size: 14px;
-  z-index: 10;
-}
-
-video { display: none; }
 </style>
 </head>
-
 <body>
 
-<div id="loading">Loading camera & hand model…</div>
-<div id="gesture">NO HAND</div>
+<div id="msg">If you see white particles → Three.js works</div>
 
-<div id="ui">
-  <label>Force</label>
-  <input type="range" id="force" min="0.2" max="4" step="0.1" value="1.5">
-
-  <label>Radius</label>
-  <input type="range" id="radius" min="0.3" max="3" step="0.1" value="1.2">
-
-  <button onclick="setShape('sphere')">Sphere</button>
-  <button onclick="setShape('heart')">Heart</button>
-  <button onclick="setShape('cube')">Cube</button>
-  <button onclick="setShape('spiral')">Spiral</button>
-</div>
-
-<video id="video" autoplay playsinline></video>
-
- window.addEventListener("unhandledrejection", e => e.preventDefault());
- await navigator.mediaDevices.getUserMedia({ video: true }).catch(() => {});
 <script type="module">
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
-import { Hands } from "https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js";
-import { Camera } from "https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js";
 
-/* ---------- BASIC SETUP ---------- */
-let scene = new THREE.Scene();
-let camera = new THREE.PerspectiveCamera(60, innerWidth/innerHeight, 0.1, 100);
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(
+  60,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  100
+);
 camera.position.z = 3;
 
-let renderer = new THREE.WebGLRenderer({ antialias:true });
-renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
-document.getElementById("loading").innerText = "Initializing particles…";
 
-/* ---------- PARTICLES ---------- */
-let COUNT = innerWidth < 600 ? 8000 : 20000;
-let positions = new Float32Array(COUNT * 3);
-let velocities = new Float32Array(COUNT * 3);
-let targets = new Float32Array(COUNT * 3);
+const count = 5000;
+const positions = new Float32Array(count * 3);
 
-let geo = new THREE.BufferGeometry();
-geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+for (let i = 0; i < count; i++) {
+  positions[i*3]     = (Math.random() - 0.5) * 2;
+  positions[i*3 + 1] = (Math.random() - 0.5) * 2;
+  positions[i*3 + 2] = (Math.random() - 0.5) * 2;
+}
 
-let mat = new THREE.PointsMaterial({
-  size: 0.04,
-  color: 0xffffff,
-  transparent: true,
-  blending: THREE.AdditiveBlending,
-  depthWrite: false
+const geometry = new THREE.BufferGeometry();
+geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+
+const material = new THREE.PointsMaterial({
+  size: 0.05,
+  color: 0xffffff
 });
 
-let points = new THREE.Points(geo, mat);
+const points = new THREE.Points(geometry, material);
 scene.add(points);
 
-/* ---------- SHAPES ---------- */
-function generateShape(type) {
-  for (let i = 0; i < COUNT; i++) {
-    let x=0,y=0,z=0;
-
-    if (type==="sphere") {
-      let t=Math.random()*Math.PI*2,p=Math.acos(2*Math.random()-1);
-      x=Math.sin(p)*Math.cos(t);
-      y=Math.sin(p)*Math.sin(t);
-      z=Math.cos(p);
-    }
-    if (type==="cube") {
-      x=(Math.random()-0.5)*2;
-      y=(Math.random()-0.5)*2;
-      z=(Math.random()-0.5)*2;
-    }
-    if (type==="spiral") {
-      let t=i/COUNT*20;
-      x=Math.cos(t);
-      y=(i/COUNT-0.5)*2;
-      z=Math.sin(t);
-    }
-    if (type==="heart") {
-      let t=Math.random()*Math.PI*2;
-      x=0.16*Math.pow(Math.sin(t),3);
-      y=0.13*Math.cos(t)-0.05*Math.cos(2*t);
-      z=(Math.random()-0.5)*0.3;
-    }
-
-    targets.set([x*2,y*2,z*2], i*3);
-    positions.set([x*2,y*2,z*2], i*3);
-  }
-}
-
-generateShape("sphere");
-
-/* ---------- INTERACTION ---------- */
-let handPos = new THREE.Vector3();
-let handOpen = false;
-let force = 1.5;
-let radius = 1.2;
-
-document.getElementById("force").oninput=e=>force=+e.target.value;
-document.getElementById("radius").oninput=e=>radius=+e.target.value;
-
-/* ---------- PHYSICS LOOP ---------- */
-function updateParticles(){
-  for(let i=0;i<COUNT;i++){
-    let i3=i*3;
-    let dx=positions[i3]-handPos.x;
-    let dy=positions[i3+1]-handPos.y;
-    let dz=positions[i3+2]-handPos.z;
-    let d = Math.max(0.001, Math.sqrt(dx*dx + dy*dy + dz*dz));
-
-    if(d<radius){
-      let dir=handOpen?1:-1;
-      let f=(1-d/radius)*force*dir;
-      velocities[i3]+=dx/d*f;
-      velocities[i3+1]+=dy/d*f;
-      velocities[i3+2]+=dz/d*f;
-    }
-
-    velocities[i3]+= (targets[i3]-positions[i3])*0.02;
-    velocities[i3+1]+= (targets[i3+1]-positions[i3+1])*0.02;
-    velocities[i3+2]+= (targets[i3+2]-positions[i3+2])*0.02;
-
-    velocities[i3]*=0.9;
-    velocities[i3+1]*=0.9;
-    velocities[i3+2]*=0.9;
-
-    positions[i3]+=velocities[i3];
-    positions[i3+1]+=velocities[i3+1];
-    positions[i3+2]+=velocities[i3+2];
-  }
-  geo.attributes.position.needsUpdate=true;
-}
-
-/* ---------- HAND TRACKING ---------- */
-const gestureUI=document.getElementById("gesture");
-const loading=document.getElementById("loading");
-const video = document.getElementById("video");
-
-const hands=new Hands({
-  locateFile:f=>`https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
-});
-
-hands.setOptions({
-  maxNumHands:1,
-  minDetectionConfidence:0.7,
-  minTrackingConfidence:0.7
-});
-
-hands.onResults(r => {
-  if (!r || !r.multiHandLandmarks || r.multiHandLandmarks.length === 0) {
-    gestureUI.textContent = "NO HAND";
-    return;
-  }
- if (loading.style.display !== "none") {
-  loading.style.display = "none";
-}
-
-  let lm=r.multiHandLandmarks[0];
-  let w=lm[0], i=lm[8];
-
-  handPos.set((w.x-0.5)*6, -(w.y-0.5)*6, 0);
-  let d=Math.hypot(w.x-i.x, w.y-i.y);
-  handOpen=d>0.1;
-  gestureUI.textContent=handOpen?"OPEN HAND":"FIST";
-});
-
-setTimeout(() => {
-  const mpCamera = new Camera(video, {
-    onFrame: async () => {
-      if (video.readyState >= 2) {
-        await hands.send({ image: video });
-      }
-    },
-    width: 640,
-    height: 480
-  });
-  mpCamera.start();
-}, 1000);
-
-/* ---------- LOOP ---------- */
-function animate(){
+function animate() {
   requestAnimationFrame(animate);
-  updateParticles();
-  renderer.render(scene,camera);
+  renderer.render(scene, camera);
 }
+
 animate();
-
-/* ---------- RESIZE ---------- */
-addEventListener("resize",()=>{
-  camera.aspect=innerWidth/innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight);
-});
-
-window.setShape=generateShape;
 </script>
 
 </body>
 </html>
-
-
-
