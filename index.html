@@ -91,6 +91,7 @@ video { display: none; }
 
 <video id="video" autoplay playsinline></video>
 
+  window.addEventListener("unhandledrejection", e => e.preventDefault());
 <script type="module">
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
 import { Hands } from "https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js";
@@ -178,7 +179,7 @@ function updateParticles(){
     let dx=positions[i3]-handPos.x;
     let dy=positions[i3+1]-handPos.y;
     let dz=positions[i3+2]-handPos.z;
-    let d=Math.sqrt(dx*dx+dy*dy+dz*dz)+0.0001;
+    let d = Math.max(0.001, Math.sqrt(dx*dx + dy*dy + dz*dz));
 
     if(d<radius){
       let dir=handOpen?1:-1;
@@ -218,9 +219,9 @@ hands.setOptions({
   minTrackingConfidence:0.7
 });
 
-hands.onResults(r=>{
-  if(!r.multiHandLandmarks){
-    gestureUI.textContent="NO HAND";
+hands.onResults(r => {
+  if (!r || !r.multiHandLandmarks || r.multiHandLandmarks.length === 0) {
+    gestureUI.textContent = "NO HAND";
     return;
   }
   loading.style.display="none";
@@ -234,10 +235,17 @@ hands.onResults(r=>{
   gestureUI.textContent=handOpen?"OPEN HAND":"FIST";
 });
 
-new Camera(document.getElementById("video"),{
-  onFrame:()=>hands.send({image:video}),
-  width:640,height:480
-}).start();
+let mpCamera = new Camera(video, {
+  onFrame: async () => {
+    if (video.readyState >= 2) {
+      await hands.send({ image: video });
+    }
+  },
+  width: 640,
+  height: 480
+});
+
+mpCamera.start();
 
 /* ---------- LOOP ---------- */
 function animate(){
@@ -259,4 +267,5 @@ window.setShape=generateShape;
 
 </body>
 </html>
+
 
