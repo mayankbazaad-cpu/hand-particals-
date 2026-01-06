@@ -15,11 +15,51 @@ body { margin:0; background:black; overflow:hidden; }
 }
 </style>
 </head>
-<body>
+<body><button id="startCam" style="
+  position:fixed;
+  bottom:20px;
+  left:50%;
+  transform:translateX(-50%);
+  padding:12px 20px;
+  font-size:16px;
+  border-radius:10px;
+  border:none;
+  background:#00ffaa;
+  cursor:pointer;
+">
+Start Camera
+</button>
+
 
 <div id="msg">If you see white particles → Three.js works</div>
 
-<script type="module">
+const startBtn = document.getElementById("startCam");
+
+startBtn.addEventListener("click", async () => {
+  startBtn.remove();
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.srcObject = stream;
+
+    const mpCamera = new Camera(video, {
+      onFrame: async () => {
+        if (video.readyState >= 2) {
+          await hands.send({ image: video });
+        }
+      },
+      width: 640,
+      height: 480
+    });
+
+    mpCamera.start();
+    gestureUI.innerText = "CAMERA ON";
+  } catch (e) {
+    console.error(e);
+    gestureUI.innerText = "CAMERA BLOCKED";
+  }
+});
+
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
 
 const scene = new THREE.Scene();
@@ -117,7 +157,7 @@ hands.onResults(results => {
 // ---------- SAFE CAMERA START ----------
 
 // Request permission first
-navigator.mediaDevices.getUserMedia({video:true})
+
 .then(stream => {
   video.srcObject = stream;
 
@@ -143,4 +183,5 @@ navigator.mediaDevices.getUserMedia({video:true})
 
 </body>
 </html>
+
 
